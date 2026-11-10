@@ -1,0 +1,16 @@
+# Secrets — never commit
+supabase/secrets.env
+*.env
+.env*
+
+# cron.sql and setup-all.sql contain your CRON_SECRET once filled in
+supabase/cron.sql
+supabase/setup-all.sql
+
+# Supabase CLI local state
+supabase/.temp/
+supabase/.branches/
+
+node_modules/
+.DS_Store
+Thumbs.db

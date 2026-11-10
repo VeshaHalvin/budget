@@ -1,0 +1,9 @@
+project_id = "budget-tracker"
+
+# These functions check their own secrets (CRON_SECRET / APP_TOKEN),
+# so Supabase's JWT check is turned off for them.
+[functions.poll-gmail]
+verify_jwt = false
+
+[functions.api]
+verify_jwt = false

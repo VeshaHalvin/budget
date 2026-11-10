@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Budget">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Daily Budget</title>
+<style>
+  :root {
+    --bg: #f5f5f2; --card: #ffffff; --text: #1c1c1a; --muted: #7a7a74;
+    --line: #e6e6e1; --good: #1f8a4c; --bad: #c4372d; --accent: #1c1c1a;
+    --chip: #efefea;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121211; --card: #1c1c1b; --text: #f0f0ec; --muted: #9a9a93;
+      --line: #2c2c2a; --good: #4cc27d; --bad: #ff6b5e; --accent: #f0f0ec;
+      --chip: #2a2a28;
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.4 -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", sans-serif;
+    padding: env(safe-area-inset-top) 16px calc(env(safe-area-inset-bottom) + 96px);
+  }
+  main { max-width: 520px; margin: 0 auto; }
+  header { display: flex; justify-content: space-between; align-items: center; padding: 16px 0 8px; }
+  header h1 { font-size: 15px; font-weight: 600; color: var(--muted); margin: 0; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  .icon-btn { padding: 8px; color: var(--muted); font-size: 20px; }
+
+  .hero { padding: 8px 0 24px; }
+  .hero .label { color: var(--muted); font-size: 14px; }
+  .hero .big { font-size: 64px; font-weight: 700; letter-spacing: -2px; line-height: 1.05; font-variant-numeric: tabular-nums; }
+  .hero .big small { font-size: 22px; font-weight: 500; letter-spacing: 0; color: var(--muted); margin-left: 4px; }
+  .neg { color: var(--bad); }
+  .pos { color: var(--good); }
+  .math { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .math span { background: var(--chip); border-radius: 999px; padding: 4px 10px; font-size: 13px; font-variant-numeric: tabular-nums; }
+
+  .day { margin-top: 20px; }
+  .day h2 { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .4px;
+            display: flex; justify-content: space-between; margin: 0 0 8px; }
+  .list { background: var(--card); border-radius: 14px; overflow: hidden; }
+  .row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-top: 1px solid var(--line); }
+  .row:first-child { border-top: 0; }
+  .row .main { flex: 1; min-width: 0; }
+  .row .merchant { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .sub { font-size: 12px; color: var(--muted); }
+  .row .amt { font-variant-numeric: tabular-nums; font-weight: 600; text-align: right; }
+  .row.excluded .merchant, .row.excluded .amt { color: var(--muted); text-decoration: line-through; }
+  .tag { font-size: 11px; padding: 3px 8px; border-radius: 999px; background: var(--chip); color: var(--muted); white-space: nowrap; }
+  .tag.on { background: var(--accent); color: var(--bg); }
+
+  .fab { position: fixed; right: 20px; bottom: calc(env(safe-area-inset-bottom) + 20px);
+         width: 56px; height: 56px; border-radius: 28px; background: var(--accent); color: var(--bg);
+         font-size: 28px; box-shadow: 0 6px 20px rgba(0,0,0,.2); }
+
+  .sheet-bg { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: none; align-items: flex-end; justify-content: center; z-index: 10; }
+  .sheet-bg.open { display: flex; }
+  .sheet { background: var(--card); width: 100%; max-width: 520px; border-radius: 18px 18px 0 0;
+           padding: 20px 16px calc(env(safe-area-inset-bottom) + 20px); }
+  .sheet h3 { margin: 0 0 14px; font-size: 18px; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 4px; }
+  input { width: 100%; font: inherit; font-size: 17px; padding: 12px; border-radius: 10px;
+          border: 1px solid var(--line); background: var(--bg); color: var(--text); }
+  .seg { display: flex; background: var(--chip); border-radius: 10px; padding: 3px; }
+  .seg button { flex: 1; padding: 8px; border-radius: 8px; font-size: 14px; }
+  .seg button.on { background: var(--card); font-weight: 600; }
+  .actions { display: flex; gap: 10px; margin-top: 18px; }
+  .actions button { flex: 1; padding: 13px; border-radius: 12px; font-weight: 600; background: var(--chip); }
+  .actions button.primary { background: var(--accent); color: var(--bg); }
+  .hint { font-size: 13px; color: var(--muted); margin-top: 10px; }
+  .error { color: var(--bad); font-size: 14px; margin: 12px 0; }
+  .empty { padding: 18px 14px; color: var(--muted); font-size: 14px; }
+  .toast { position: fixed; left: 50%; top: calc(env(safe-area-inset-top) + 12px); transform: translateX(-50%);
+           background: var(--accent); color: var(--bg); padding: 8px 14px; border-radius: 999px; font-size: 14px;
+           opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 20; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1 id="title">Daily budget</h1>
+    <div>
+      <button class="icon-btn" id="refresh" aria-label="Refresh">↻</button>
+      <button class="icon-btn" id="openSettings" aria-label="Settings">⚙︎</button>
+    </div>
+  </header>
+
+  <section class="hero" id="hero">
+    <div class="label">Left today</div>
+    <div class="big" id="left">—<small>RMB</small></div>
+    <div class="math" id="math"></div>
+  </section>
+  <div id="err" class="error" hidden></div>
+  <div id="days"></div>
+</main>
+
+<button class="fab" id="openAdd" aria-label="Add expense">+</button>
+
+<!-- Add sheet -->
+<div class="sheet-bg" id="addSheet">
+  <form class="sheet" id="addForm">
+    <h3>Add manually</h3>
+    <div class="seg" id="kind">
+      <button type="button" data-kind="spend" class="on">Cash spend</button>
+      <button type="button" data-kind="refund">Refund</button>
+    </div>
+    <label for="amt">Amount (RMB)</label>
+    <input id="amt" inputmode="decimal" placeholder="0" required>
+    <label for="what">What</label>
+    <input id="what" placeholder="e.g. Noodles">
+    <label for="when">When</label>
+    <input id="when" type="datetime-local">
+    <div class="actions">
+      <button type="button" data-close>Cancel</button>
+      <button type="submit" class="primary">Add</button>
+    </div>
+  </form>
+</div>
+
+<!-- Settings sheet -->
+<div class="sheet-bg" id="settingsSheet">
+  <form class="sheet" id="settingsForm">
+    <h3>Settings</h3>
+    <label for="apiUrl">API URL</label>
+    <input id="apiUrl" placeholder="https://xxxx.supabase.co/functions/v1/api" autocapitalize="off" autocorrect="off">
+    <label for="token">App token</label>
+    <input id="token" type="password" autocapitalize="off" autocorrect="off">
+    <label for="budget">Daily budget (RMB)</label>
+    <input id="budget" inputmode="decimal">
+    <label for="start">Budget started on</label>
+    <input id="start" type="date">
+    <div class="hint">Changing the start date recalculates everything from that day.</div>
+    <div class="actions">
+      <button type="button" data-close>Cancel</button>
+      <button type="submit" class="primary">Save</button>
+    </div>
+  </form>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const TZ = "Asia/Shanghai";
+const $ = (id) => document.getElementById(id);
+const DEMO = new URLSearchParams(location.search).has("demo");
+
+const store = {
+  get(k) { try { return localStorage.getItem(k) || ""; } catch { return ""; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+};
+
+let state = { balance: null, transactions: [] };
+
+// ---------- formatting ----------
+const fmt = (n) => {
+  const v = Math.round(Number(n) * 100) / 100;
+  return v.toLocaleString("en-US", { maximumFractionDigits: 2 });
+};
+const dayKey = (iso) => new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date(iso));
+const timeOf = (iso) => new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
+function dayLabel(key, today) {
+  if (key === today) return "Today";
+  const d = new Date(key + "T00:00:00Z"), t = new Date(today + "T00:00:00Z");
+  if ((t - d) / 86400000 === 1) return "Yesterday";
+  return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
+}
+function toast(msg) {
+  const t = $("toast"); t.textContent = msg; t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 1600);
+}
+
+// ---------- API ----------
+async function api(action, payload = {}) {
+  if (DEMO) return demoApi(action, payload);
+  const url = store.get("apiUrl"), token = store.get("token");
+  if (!url || !token) throw new Error("Open settings (⚙︎) and enter your API URL and app token.");
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-app-token": token },
+    body: JSON.stringify({ action, ...payload }),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || `Request failed (${res.status})`);
+  return json;
+}
+
+async function load() {
+  try {
+    const data = await api("summary");
+    state = data;
+    $("err").hidden = true;
+    render();
+  } catch (e) {
+    $("err").textContent = e.message; $("err").hidden = false;
+  }
+}
+
+// ---------- render ----------
+function render() {
+  const b = state.balance;
+  if (!b) return;
+  const left = Number(b.left_today);
+  $("left").innerHTML = `${fmt(left)}<small>RMB</small>`;
+  $("left").className = "big" + (left < 0 ? " neg" : "");
+  const carry = Number(b.carry_in);
+  $("math").innerHTML = `
+    <span>Budget ${fmt(b.daily_budget)}</span>
+    <span class="${carry < 0 ? "neg" : "pos"}">${carry < 0 ? "−" : "+"}${fmt(Math.abs(carry))} carried</span>
+    <span>−${fmt(b.spent_today)} spent</span>`;
+
+  const groups = new Map();
+  for (const t of state.transactions) {
+    const k = dayKey(t.occurred_at);
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(t);
+  }
+  if (!groups.has(b.today)) groups.set(b.today, []);
+  const keys = [...groups.keys()].sort().reverse();
+
+  $("days").innerHTML = keys.map((k) => {
+    const txs = groups.get(k);
+    const counted = txs.filter((t) => !t.excluded && t.currency === "CNY")
+                       .reduce((s, t) => s + Number(t.amount), 0);
+    const rows = txs.length ? txs.map(rowHtml).join("")
+      : `<div class="empty">Nothing spent yet today.</div>`;
+    return `<section class="day"><h2><span>${dayLabel(k, b.today)}</span><span>${fmt(counted)} RMB</span></h2>
+      <div class="list">${rows}</div></section>`;
+  }).join("");
+}
+
+function rowHtml(t) {
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  const amt = Number(t.amount);
+  const cur = t.currency === "CNY" ? "" : ` ${t.currency}`;
+  const sub = [timeOf(t.occurred_at), t.source === "manual" ? "added by you" : null, t.note].filter(Boolean).join(" · ");
+  const btn = t.source === "manual"
+    ? `<button class="tag" data-del="${t.id}">Delete</button>`
+    : t.currency === "CNY"
+      ? `<button class="tag ${t.excluded ? "on" : ""}" data-flag="${t.id}">${t.excluded ? "Big ✓" : "Big?"}</button>`
+      : "";
+  return `<div class="row ${t.excluded ? "excluded" : ""}">
+    <div class="main"><div class="merchant">${esc(t.merchant)}</div><div class="sub">${esc(sub)}</div></div>
+    <div class="amt ${amt < 0 ? "pos" : ""}">${amt < 0 ? "+" + fmt(-amt) : "−" + fmt(amt)}${cur}</div>
+    ${btn}</div>`;
+}
+
+// ---------- actions ----------
+$("days").addEventListener("click", async (e) => {
+  const flag = e.target.closest("[data-flag]");
+  const del = e.target.closest("[data-del]");
+  try {
+    if (flag) {
+      const id = Number(flag.dataset.flag);
+      const t = state.transactions.find((x) => x.id === id);
+      const excluded = !t.excluded;
+      const res = await api("flag", { id, excluded });
+      t.excluded = excluded; state.balance = res.balance; render();
+      toast(t.excluded ? "Marked as big purchase — not counted" : "Counted again");
+    } else if (del) {
+      if (!confirm("Delete this entry?")) return;
+      const id = Number(del.dataset.del);
+      const res = await api("delete", { id });
+      state.transactions = state.transactions.filter((x) => x.id !== id);
+      state.balance = res.balance; render(); toast("Deleted");
+    }
+  } catch (err) { toast(err.message); }
+});
+
+let kind = "spend";
+$("kind").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  kind = b.dataset.kind;
+  [...$("kind").children].forEach((x) => x.classList.toggle("on", x === b));
+});
+
+function localNowForInput() {
+  const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 16);
+}
+
+$("openAdd").onclick = () => {
+  $("addForm").reset(); $("when").value = localNowForInput();
+  $("addSheet").classList.add("open"); setTimeout(() => $("amt").focus(), 50);
+};
+$("addForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const n = Number($("amt").value.replace(",", "."));
+  if (!n || n < 0) return toast("Enter an amount");
+  try {
+    await api("add", {
+      amount: kind === "refund" ? -n : n,
+      merchant: $("what").value.trim(),
+      occurred_at: new Date($("when").value).toISOString(),
+    });
+    $("addSheet").classList.remove("open"); toast("Added"); load();
+  } catch (err) { toast(err.message); }
+};
+
+$("openSettings").onclick = () => {
+  $("apiUrl").value = store.get("apiUrl"); $("token").value = store.get("token");
+  $("budget").value = state.balance?.daily_budget ?? "";
+  $("start").value = state.balance?.start_date ?? "";
+  $("settingsSheet").classList.add("open");
+};
+$("settingsForm").onsubmit = async (e) => {
+  e.preventDefault();
+  store.set("apiUrl", $("apiUrl").value.trim()); store.set("token", $("token").value.trim());
+  try {
+    const patch = {};
+    if ($("budget").value && Number($("budget").value) !== Number(state.balance?.daily_budget)) patch.daily_budget = Number($("budget").value);
+    if ($("start").value && $("start").value !== state.balance?.start_date) patch.start_date = $("start").value;
+    if (Object.keys(patch).length) await api("settings", patch);
+    $("settingsSheet").classList.remove("open"); toast("Saved"); load();
+  } catch (err) { toast(err.message); }
+};
+
+document.querySelectorAll("[data-close]").forEach((b) =>
+  b.onclick = () => b.closest(".sheet-bg").classList.remove("open"));
+document.querySelectorAll(".sheet-bg").forEach((bg) =>
+  bg.addEventListener("click", (e) => { if (e.target === bg) bg.classList.remove("open"); }));
+
+$("refresh").onclick = () => { load(); toast("Refreshed"); };
+document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });
+
+// ---------- demo data (open the page with ?demo) ----------
+function demoApi(action, p) {
+  if (!window._demo) {
+    const today = dayKey(new Date().toISOString());
+    const at = (daysAgo, hhmm) => new Date(new Date(today + "T" + hhmm + ":00+08:00").getTime() - daysAgo * 86400000).toISOString();
+    window._demo = {
+      settings: { daily_budget: 50, start_date: dayKey(new Date(Date.now() - 2 * 86400000).toISOString()) },
+      txs: [
+        { id: 1, occurred_at: at(0, "08:00"), merchant: "Alipay*HelloBike", amount: 1.6, currency: "CNY", source: "email", excluded: false },
+        { id: 2, occurred_at: at(0, "12:31"), merchant: "ALP*QRCode9255", amount: 23.5, currency: "CNY", source: "email", excluded: false },
+        { id: 3, occurred_at: at(1, "09:12"), merchant: "Alipay*Luckin Coffee", amount: 13.9, currency: "CNY", source: "email", excluded: false },
+        { id: 4, occurred_at: at(1, "19:40"), merchant: "Alipay*Ctrip", amount: 1280, currency: "CNY", source: "email", excluded: true },
+        { id: 5, occurred_at: at(1, "20:05"), merchant: "Noodles", amount: 18, currency: "CNY", source: "manual", excluded: false },
+        { id: 6, occurred_at: at(2, "13:00"), merchant: "Hotpot", amount: 72, currency: "CNY", source: "email", excluded: false },
+      ],
+      next: 7,
+    };
+  }
+  const D = window._demo;
+  const balance = () => {
+    const today = dayKey(new Date().toISOString());
+    const days = Math.round((new Date(today) - new Date(D.settings.start_date)) / 86400000);
+    const counted = D.txs.filter((t) => !t.excluded && dayKey(t.occurred_at) >= D.settings.start_date);
+    const before = counted.filter((t) => dayKey(t.occurred_at) < today).reduce((s, t) => s + t.amount, 0);
+    const now = counted.filter((t) => dayKey(t.occurred_at) === today).reduce((s, t) => s + t.amount, 0);
+    const b = D.settings.daily_budget;
+    return { today, start_date: D.settings.start_date, daily_budget: b,
+             carry_in: b * days - before, spent_today: now, left_today: b * (days + 1) - before - now };
+  };
+  if (action === "flag") D.txs.find((t) => t.id === p.id).excluded = p.excluded;
+  if (action === "add") D.txs.push({ id: D.next++, occurred_at: p.occurred_at, merchant: p.merchant || (p.amount < 0 ? "Refund" : "Cash"), amount: p.amount, currency: "CNY", source: "manual", excluded: false });
+  if (action === "delete") D.txs = D.txs.filter((t) => t.id !== p.id);
+  if (action === "settings") Object.assign(D.settings, p);
+  const txs = [...D.txs].sort((a, b) => b.occurred_at.localeCompare(a.occurred_at));
+  return Promise.resolve({ ok: true, balance: balance(), transactions: txs });
+}
+
+// One-tap setup: a link like  page/#u=<api url>&t=<app token>  saves the settings.
+// The hash is kept so "Add to Home Screen" carries it into the home-screen app too
+// (the hash never leaves the phone; browsers don't send it to the server).
+(() => {
+  const h = new URLSearchParams(location.hash.slice(1));
+  if (h.get("u") && h.get("t")) { store.set("apiUrl", h.get("u")); store.set("token", h.get("t")); }
+})();
+
+if (DEMO) $("title").textContent = "Daily budget · demo";
+load();
+</script>
+</body>
+</html>

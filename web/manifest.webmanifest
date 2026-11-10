@@ -1,0 +1,7 @@
+{
+  "name": "Daily Budget",
+  "short_name": "Budget",
+  "display": "standalone",
+  "background_color": "#f5f5f2",
+  "theme_color": "#f5f5f2"
+}
