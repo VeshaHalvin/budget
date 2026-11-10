@@ -14,3 +14,6 @@ supabase/.branches/
 node_modules/
 .DS_Store
 Thumbs.db
+
+# Launch video output
+brag-output/
