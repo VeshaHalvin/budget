@@ -1,0 +1,4 @@
+# Netlify deploys the web/ folder as-is on every push to main. No build step.
+[build]
+  publish = "web"
+  command = ""
