@@ -8,7 +8,7 @@ BCA email → Gmail → (every 2 min) Supabase function reads it → saves it �
                          Home-screen web page (flag big purchases, add cash, see history)
 ```
 
-Budget rule: `left today = 50 × (days since start, incl. today) − everything spent`.
+Budget rule: `left today = 50 × (days since the last reset, incl. today) − everything spent since then`. Resets on the 20th of every month (changeable in the page settings).
 Unspent money rolls forward. Overspending comes out of later days. Big purchases you flag aren't counted.
 
 Takes about 30–40 minutes the first time. Everything is free.

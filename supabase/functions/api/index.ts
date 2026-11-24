@@ -5,7 +5,7 @@
 // POST { action: "flag", id, excluded }                    -> mark/unmark big purchase
 // POST { action: "add", amount, merchant, occurred_at? }   -> manual entry (cash, refund = negative)
 // POST { action: "delete", id }                            -> delete a manual entry
-// POST { action: "settings", daily_budget?, start_date? }  -> change budget settings
+// POST { action: "settings", daily_budget?, start_date?, reset_day? } -> change budget settings
 
 import { db, getBalance } from "../_shared/db.ts";
 
@@ -79,6 +79,13 @@ Deno.serve(async (req) => {
         const patch: Record<string, unknown> = {};
         if (body.daily_budget != null) patch.daily_budget = Number(body.daily_budget);
         if (body.start_date) patch.start_date = body.start_date;
+        if (body.reset_day != null) {
+          const day = Number(body.reset_day);
+          if (!Number.isInteger(day) || day < 1 || day > 28) {
+            return reply({ error: "Reset day must be 1–28" }, 400);
+          }
+          patch.reset_day = day;
+        }
         const { error } = await db.from("settings").update(patch).eq("id", 1);
         if (error) throw error;
         return reply({ ok: true, balance: await getBalance() });

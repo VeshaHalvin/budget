@@ -139,6 +139,9 @@
     <label for="start">Budget started on</label>
     <input id="start" type="date">
     <div class="hint">Changing the start date recalculates everything from that day.</div>
+    <label for="reset">Resets every month on day</label>
+    <input id="reset" inputmode="numeric" placeholder="20">
+    <div class="hint">On this day leftovers and overspending go back to zero (1–28).</div>
     <div class="actions">
       <button type="button" data-close>Cancel</button>
       <button type="submit" class="primary">Save</button>
@@ -172,6 +175,13 @@ function dayLabel(key, today) {
   const d = new Date(key + "T00:00:00Z"), t = new Date(today + "T00:00:00Z");
   if ((t - d) / 86400000 === 1) return "Yesterday";
   return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
+}
+const shortDate = (key) => new Date(key + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+// Most recent reset day on or before `key` (YYYY-MM-DD). Mirrors period_start() in SQL.
+function periodStart(key, resetDay) {
+  const [y, m, d] = key.split("-").map(Number);
+  const dt = d >= resetDay ? new Date(Date.UTC(y, m - 1, resetDay)) : new Date(Date.UTC(y, m - 2, resetDay));
+  return dt.toISOString().slice(0, 10);
 }
 function toast(msg) {
   const t = $("toast"); t.textContent = msg; t.classList.add("show");
@@ -215,7 +225,8 @@ function render() {
   $("math").innerHTML = `
     <span>Budget ${fmt(b.daily_budget)}</span>
     <span class="${carry < 0 ? "neg" : "pos"}">${carry < 0 ? "−" : "+"}${fmt(Math.abs(carry))} carried</span>
-    <span>−${fmt(b.spent_today)} spent</span>`;
+    <span>−${fmt(b.spent_today)} spent</span>
+    ${b.next_reset ? `<span>Resets ${shortDate(b.next_reset)}</span>` : ""}`;
 
   const groups = new Map();
   for (const t of state.transactions) {
@@ -309,6 +320,7 @@ $("openSettings").onclick = () => {
   $("apiUrl").value = store.get("apiUrl"); $("token").value = store.get("token");
   $("budget").value = state.balance?.daily_budget ?? "";
   $("start").value = state.balance?.start_date ?? "";
+  $("reset").value = state.balance?.reset_day ?? "";
   $("settingsSheet").classList.add("open");
 };
 $("settingsForm").onsubmit = async (e) => {
@@ -318,6 +330,7 @@ $("settingsForm").onsubmit = async (e) => {
     const patch = {};
     if ($("budget").value && Number($("budget").value) !== Number(state.balance?.daily_budget)) patch.daily_budget = Number($("budget").value);
     if ($("start").value && $("start").value !== state.balance?.start_date) patch.start_date = $("start").value;
+    if ($("reset").value && Number($("reset").value) !== Number(state.balance?.reset_day)) patch.reset_day = Number($("reset").value);
     if (Object.keys(patch).length) await api("settings", patch);
     $("settingsSheet").classList.remove("open"); toast("Saved"); load();
   } catch (err) { toast(err.message); }
@@ -337,7 +350,7 @@ function demoApi(action, p) {
     const today = dayKey(new Date().toISOString());
     const at = (daysAgo, hhmm) => new Date(new Date(today + "T" + hhmm + ":00+08:00").getTime() - daysAgo * 86400000).toISOString();
     window._demo = {
-      settings: { daily_budget: 50, start_date: dayKey(new Date(Date.now() - 2 * 86400000).toISOString()) },
+      settings: { daily_budget: 50, reset_day: 20, start_date: dayKey(new Date(Date.now() - 2 * 86400000).toISOString()) },
       txs: [
         { id: 1, occurred_at: at(0, "08:00"), merchant: "Alipay*HelloBike", amount: 1.6, currency: "CNY", source: "email", excluded: false },
         { id: 2, occurred_at: at(0, "12:31"), merchant: "ALP*QRCode9255", amount: 23.5, currency: "CNY", source: "email", excluded: false },
@@ -352,12 +365,16 @@ function demoApi(action, p) {
   const D = window._demo;
   const balance = () => {
     const today = dayKey(new Date().toISOString());
-    const days = Math.round((new Date(today) - new Date(D.settings.start_date)) / 86400000);
-    const counted = D.txs.filter((t) => !t.excluded && dayKey(t.occurred_at) >= D.settings.start_date);
+    const ps = periodStart(today, D.settings.reset_day);
+    const sd = D.settings.start_date > ps ? D.settings.start_date : ps;
+    const nr = new Date(ps + "T00:00:00Z"); nr.setUTCMonth(nr.getUTCMonth() + 1);
+    const days = Math.round((new Date(today) - new Date(sd)) / 86400000);
+    const counted = D.txs.filter((t) => !t.excluded && dayKey(t.occurred_at) >= sd);
     const before = counted.filter((t) => dayKey(t.occurred_at) < today).reduce((s, t) => s + t.amount, 0);
     const now = counted.filter((t) => dayKey(t.occurred_at) === today).reduce((s, t) => s + t.amount, 0);
     const b = D.settings.daily_budget;
-    return { today, start_date: D.settings.start_date, daily_budget: b,
+    return { today, start_date: D.settings.start_date, period_start: sd, reset_day: D.settings.reset_day,
+             next_reset: nr.toISOString().slice(0, 10), daily_budget: b,
              carry_in: b * days - before, spent_today: now, left_today: b * (days + 1) - before - now };
   };
   if (action === "flag") D.txs.find((t) => t.id === p.id).excluded = p.excluded;

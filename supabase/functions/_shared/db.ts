@@ -9,6 +9,9 @@ export const db = createClient(
 export interface Balance {
   today: string;
   start_date: string;
+  period_start: string;
+  next_reset: string;
+  reset_day: number;
   daily_budget: number;
   carry_in: number;
   spent_today: number;

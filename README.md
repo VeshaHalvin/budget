@@ -10,9 +10,10 @@ A 50 RMB-a-day budget that runs itself. Your bank already emails you every card 
 - **Unspent money rolls over** to the next day.
 - **Overspending comes out of** the next day.
 - **Big one-off purchases** (a flight, rent) can be flagged with one tap so they don't count.
+- **Resets every month on the 20th** (changeable, 1–28): leftovers and overspending go back to zero and counting starts fresh.
 
 ```
-left today = 50 × (days since start, including today) − everything spent
+left today = 50 × (days since the last reset, including today) − everything spent since then
 ```
 
 | Day | Available | Spent | Carries over |
@@ -52,6 +53,7 @@ All on free tiers:
 ```
 supabase/
   migrations/…_init.sql      tables + get_balance() function
+  migrations/…_monthly_reset.sql  monthly reset day
   cron.example.sql           schedules the Gmail check every 2 minutes
   functions/poll-gmail/      reads new BCA emails, saves them, sends Bark
   functions/api/             backend for the web page (token-protected)
